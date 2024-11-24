@@ -1,120 +1,153 @@
-import React, { useRef, useState } from 'react';
-import './App.css';
+import React, { useState } from "react";
+import "./App.css";
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { useCollectionData } from "react-firebase-hooks/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDwztCRbh_6Dz4bU8f6V_lgnZNLE9P9zT4",
-  authDomain: "digitalownership-b2afe.firebaseapp.com",
-  projectId: "digitalownership-b2afe",
-  storageBucket: "digitalownership-b2afe.appspot.com",
-  messagingSenderId: "409306177453",
-  appId: "1:409306177453:web:b082a1c48cf4f30a4e0b24"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
-const analytics = getAnalytics(app);
 
 function App() {
   const [user] = useAuthState(auth);
 
   return (
     <div className="App">
-      <header>
+      <header className="app-header">
         <h1>🔥 Video Platform</h1>
-        <SignOut />
+        {user && <SignOut />}
       </header>
 
-      <section>
+      <main className="app-main">
         {user ? <VideoDashboard /> : <SignIn />}
-      </section>
+      </main>
+
+      <footer className="app-footer">
+        <p>© 2024 Video Platform. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
 
 function SignIn() {
-  const signInWithGoogle = () => {
+  const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch((error) => console.error('Error signing in:', error));
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in:", error);
+      alert("Failed to sign in. Please try again.");
+    }
   };
 
   return (
-    <div>
-      <button className="sign-in" onClick={signInWithGoogle}>Sign in with Google</button>
+    <div className="auth-section">
+      <button className="btn sign-in-btn" onClick={signInWithGoogle}>
+        Sign in with Google
+      </button>
       <p>Follow community guidelines to avoid being banned!</p>
     </div>
   );
 }
 
 function SignOut() {
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      alert("Failed to sign out. Please try again.");
+    }
+  };
+
   return (
-    auth.currentUser && (
-      <button className="sign-out" onClick={() => signOut(auth)}>
-        Sign Out
-      </button>
-    )
+    <button className="btn sign-out-btn" onClick={handleSignOut}>
+      Sign Out
+    </button>
   );
 }
 
 function VideoDashboard() {
-  const videosRef = collection(firestore, 'videos');
-  const q = query(videosRef, orderBy('createdAt', 'desc'));
-  const [videos] = useCollectionData(q, { idField: 'id' });
-  const [videoTitle, setVideoTitle] = useState('');
+  const videosRef = collection(firestore, "videos");
+  const q = query(videosRef, orderBy("createdAt", "desc"));
+  const [videos] = useCollectionData(q, { idField: "id" });
+  const [videoTitle, setVideoTitle] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!videoTitle.trim()) {
-      alert('Video title is required');
+      alert("Video title is required");
       return;
     }
+
     setUploading(true);
 
     try {
       await addDoc(videosRef, {
         title: videoTitle,
         createdAt: serverTimestamp(),
-        userId: auth.currentUser.uid,
-        userName: auth.currentUser.displayName || 'Anonymous'
+        userId: auth.currentUser?.uid || "unknown",
+        userName: auth.currentUser?.displayName || "Anonymous",
       });
-      setVideoTitle('');
+      setVideoTitle("");
     } catch (error) {
-      console.error('Error uploading video:', error);
+      console.error("Error uploading video:", error);
+      alert("Failed to upload video. Please try again.");
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   return (
-    <div>
+    <div className="dashboard">
       <form onSubmit={handleUpload} className="upload-form">
         <input
           type="text"
-          placeholder="Video Title"
+          placeholder="Enter video title"
           value={videoTitle}
           onChange={(e) => setVideoTitle(e.target.value)}
+          required
         />
-        <button type="submit" disabled={uploading}>
-          {uploading ? 'Uploading...' : 'Upload'}
+        <button type="submit" className="btn upload-btn" disabled={uploading}>
+          {uploading ? "Uploading..." : "Upload Video"}
         </button>
       </form>
 
       <div className="video-grid">
-        {videos && videos.map((video) => (
-          <div key={video.id} className="video-card">
-            <h3>{video.title}</h3>
-            <p>Uploaded by {video.userName}</p>
-          </div>
-        ))}
+        {videos &&
+          videos.map((video) => (
+            <div key={video.id} className="video-card">
+              <h3>{video.title}</h3>
+              <p>Uploaded by {video.userName}</p>
+            </div>
+          ))}
       </div>
     </div>
   );
