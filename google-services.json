@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "409306177453",
+    "project_id": "digitalownership-b2afe",
+    "storage_bucket": "digitalownership-b2afe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:409306177453:android:43d750f7d74252314e0b24",
+        "android_client_info": {
+          "package_name": "com.tgeiling.digitalOwnership"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "409306177453-pit17o7tkjtglk70kgv201uppnc1qp90.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYsOKqMF-CZhbmMbEEBsG7jk8kKBkVJjY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "409306177453-pit17o7tkjtglk70kgv201uppnc1qp90.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
