@@ -1,56 +1,55 @@
-import React, { useState } from "react";
-import "./App.css";
+import React, { useState } from 'react';
+import './App.css';
+import Sidebar from './Sidebar';
 
-import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
-import {
-  getFirestore,
-  collection,
-  query,
-  orderBy,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { useCollectionData } from "react-firebase-hooks/firestore";
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollectionData } from 'react-firebase-hooks/firestore';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDwztCRbh_6Dz4bU8f6V_lgnZNLE9P9zT4",
+  authDomain: "digitalownership-b2afe.firebaseapp.com",
+  projectId: "digitalownership-b2afe",
+  storageBucket: "digitalownership-b2afe.firebasestorage.app",
+  messagingSenderId: "409306177453",
+  appId: "1:409306177453:web:b082a1c48cf4f30a4e0b24"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
+const storage = getStorage(app);
 
 function App() {
   const [user] = useAuthState(auth);
+  const [activeMenu, setActiveMenu] = useState('dashboard'); // Track the active menu item
 
   return (
     <div className="App">
       <header className="app-header">
-        <h1>🔥 Video Platform</h1>
+        <h1 className="logo">🔥 Video Platform</h1>
         {user && <SignOut />}
       </header>
-
       <main className="app-main">
-        {user ? <VideoDashboard /> : <SignIn />}
+        {user ? (
+          <div className="app-content">
+            <Sidebar setActiveMenu={setActiveMenu} />
+            <div className="main-view">
+              {activeMenu === 'dashboard' && <VideoDashboard />}
+              {activeMenu === 'boughtVideos' && <div>My Bought Videos</div>}
+              {activeMenu === 'valuableVideos' && <div>Most Valuable Videos</div>}
+              {activeMenu === 'account' && <div>Account Settings</div>}
+            </div>
+          </div>
+        ) : (
+          <SignIn />
+        )}
       </main>
-
-      <footer className="app-footer">
-        <p>© 2024 Video Platform. All rights reserved.</p>
-      </footer>
     </div>
   );
 }
@@ -61,96 +60,136 @@ function SignIn() {
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error("Error signing in:", error);
-      alert("Failed to sign in. Please try again.");
+      console.error('Error signing in:', error);
     }
   };
 
   return (
-    <div className="auth-section">
-      <button className="btn sign-in-btn" onClick={signInWithGoogle}>
+    <div className="sign-in-container">
+      <button onClick={signInWithGoogle} className="btn sign-in-btn">
         Sign in with Google
       </button>
-      <p>Follow community guidelines to avoid being banned!</p>
+      <p className="guidelines">
+        Follow community guidelines to avoid being banned!
+      </p>
     </div>
   );
 }
 
 function SignOut() {
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-      alert("Failed to sign out. Please try again.");
-    }
+  const handleSignOut = () => {
+    signOut(auth).catch((error) => console.error('Error signing out:', error));
   };
 
   return (
-    <button className="btn sign-out-btn" onClick={handleSignOut}>
+    <button onClick={handleSignOut} className="btn sign-out-btn">
       Sign Out
     </button>
   );
 }
 
+
 function VideoDashboard() {
-  const videosRef = collection(firestore, "videos");
-  const q = query(videosRef, orderBy("createdAt", "desc"));
-  const [videos] = useCollectionData(q, { idField: "id" });
-  const [videoTitle, setVideoTitle] = useState("");
+  const videosRef = collection(firestore, 'videos');
+  const q = query(videosRef, orderBy('createdAt', 'desc'));
+  const [videos] = useCollectionData(q, { idField: 'id' });
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoFile, setVideoFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e) => {
+    setVideoFile(e.target.files[0]);
+  };
 
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!videoTitle.trim()) {
-      alert("Video title is required");
+      alert('Video title is required');
       return;
     }
-
+    if (!videoFile) {
+      alert('Please select a video file');
+      return;
+    }
     setUploading(true);
 
-    try {
-      await addDoc(videosRef, {
-        title: videoTitle,
-        createdAt: serverTimestamp(),
-        userId: auth.currentUser?.uid || "unknown",
-        userName: auth.currentUser?.displayName || "Anonymous",
-      });
-      setVideoTitle("");
-    } catch (error) {
-      console.error("Error uploading video:", error);
-      alert("Failed to upload video. Please try again.");
-    } finally {
-      setUploading(false);
-    }
+    const storageRef = ref(storage, `videos/${videoFile.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, videoFile);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`Upload is ${progress}% done`);
+      },
+      (error) => {
+        console.error('Error uploading video:', error);
+        setUploading(false);
+      },
+      async () => {
+        const videoURL = await getDownloadURL(uploadTask.snapshot.ref);
+        try {
+          await addDoc(videosRef, {
+            title: videoTitle,
+            videoURL,
+            createdAt: serverTimestamp(),
+            userId: auth.currentUser ? auth.currentUser.uid : 'unknown',
+            userName: auth.currentUser ? auth.currentUser.displayName : 'Anonymous',
+          });
+          setVideoTitle('');
+          setVideoFile(null);
+        } catch (error) {
+          console.error('Error saving video metadata:', error);
+        }
+        setUploading(false);
+      }
+    );
   };
 
   return (
-    <div className="dashboard">
+    <div className="dashboard-container">
       <form onSubmit={handleUpload} className="upload-form">
         <input
           type="text"
-          placeholder="Enter video title"
+          placeholder="Video Title"
           value={videoTitle}
           onChange={(e) => setVideoTitle(e.target.value)}
-          required
+          className="input-field"
         />
-        <button type="submit" className="btn upload-btn" disabled={uploading}>
-          {uploading ? "Uploading..." : "Upload Video"}
+        <input
+          type="file"
+          accept="video/*"
+          onChange={handleFileChange}
+          className="file-input"
+        />
+        <button type="submit" disabled={uploading} className="upload-button">
+          {uploading ? "Uploading..." : "Upload"}
         </button>
       </form>
+
 
       <div className="video-grid">
         {videos &&
           videos.map((video) => (
             <div key={video.id} className="video-card">
-              <h3>{video.title}</h3>
-              <p>Uploaded by {video.userName}</p>
+              <div className="thumbnail-container">
+                <a href={video.videoURL} target="_blank" rel="noopener noreferrer">
+                  <video className="thumbnail-video" controls>
+                    <source src={video.videoURL} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </a>
+              </div>
+              <div className="video-details">
+                <h3 className="video-title">{video.title}</h3>
+                <p className="video-uploader">By {video.userName}</p>
+              </div>
             </div>
           ))}
       </div>
     </div>
   );
 }
+
 
 export default App;
