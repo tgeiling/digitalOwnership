@@ -1,29 +1,11 @@
 import React, { useState } from 'react';
 import './App.css';
-import Sidebar from './Sidebar';
+import Sidebar from'./Sidebar';
+import VideoDashboard from './Videodashboard.js';
 
-import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDwztCRbh_6Dz4bU8f6V_lgnZNLE9P9zT4",
-  authDomain: "digitalownership-b2afe.firebaseapp.com",
-  projectId: "digitalownership-b2afe",
-  storageBucket: "digitalownership-b2afe.firebasestorage.app",
-  messagingSenderId: "409306177453",
-  appId: "1:409306177453:web:b082a1c48cf4f30a4e0b24"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const firestore = getFirestore(app);
-const storage = getStorage(app);
+import { auth, app } from './firebaseConfig'
 
 function App() {
   const [user] = useAuthState(auth);
@@ -88,108 +70,6 @@ function SignOut() {
   );
 }
 
-
-function VideoDashboard() {
-  const videosRef = collection(firestore, 'videos');
-  const q = query(videosRef, orderBy('createdAt', 'desc'));
-  const [videos] = useCollectionData(q, { idField: 'id' });
-  const [videoTitle, setVideoTitle] = useState('');
-  const [videoFile, setVideoFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileChange = (e) => {
-    setVideoFile(e.target.files[0]);
-  };
-
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!videoTitle.trim()) {
-      alert('Video title is required');
-      return;
-    }
-    if (!videoFile) {
-      alert('Please select a video file');
-      return;
-    }
-    setUploading(true);
-
-    const storageRef = ref(storage, `videos/${videoFile.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, videoFile);
-
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log(`Upload is ${progress}% done`);
-      },
-      (error) => {
-        console.error('Error uploading video:', error);
-        setUploading(false);
-      },
-      async () => {
-        const videoURL = await getDownloadURL(uploadTask.snapshot.ref);
-        try {
-          await addDoc(videosRef, {
-            title: videoTitle,
-            videoURL,
-            createdAt: serverTimestamp(),
-            userId: auth.currentUser ? auth.currentUser.uid : 'unknown',
-            userName: auth.currentUser ? auth.currentUser.displayName : 'Anonymous',
-          });
-          setVideoTitle('');
-          setVideoFile(null);
-        } catch (error) {
-          console.error('Error saving video metadata:', error);
-        }
-        setUploading(false);
-      }
-    );
-  };
-
-  return (
-    <div className="dashboard-container">
-      <form onSubmit={handleUpload} className="upload-form">
-        <input
-          type="text"
-          placeholder="Video Title"
-          value={videoTitle}
-          onChange={(e) => setVideoTitle(e.target.value)}
-          className="input-field"
-        />
-        <input
-          type="file"
-          accept="video/*"
-          onChange={handleFileChange}
-          className="file-input"
-        />
-        <button type="submit" disabled={uploading} className="upload-button">
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
-      </form>
-
-
-      <div className="video-grid">
-        {videos &&
-          videos.map((video) => (
-            <div key={video.id} className="video-card">
-              <div className="thumbnail-container">
-                <a href={video.videoURL} target="_blank" rel="noopener noreferrer">
-                  <video className="thumbnail-video" controls>
-                    <source src={video.videoURL} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                </a>
-              </div>
-              <div className="video-details">
-                <h3 className="video-title">{video.title}</h3>
-                <p className="video-uploader">By {video.userName}</p>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
 
 
 export default App;
